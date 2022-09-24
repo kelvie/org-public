@@ -22,7 +22,7 @@ git checkout -B 1.3 1.3
 I then opened up the schematics in kicad:
 
 
-[[./_20220923_221101screenshot.png]]
+[[./img/_20220923_221101screenshot.png]]
 
 ** Symptoms :ATTACH:
 :PROPERTIES:
@@ -38,34 +38,34 @@ that the power path is broken
 
 Looking now at the schematic again, the power path is in a subsheet:
 
-[[./_20220923_223307screenshot.png]]
+[[./img/_20220923_223307screenshot.png]]
 
 
 So entering that, I see the power path, neatly laid out:
 
-[[./_20220923_221348screenshot.png]]
+[[./img/_20220923_221348screenshot.png]]
 
 There even comments explaining what things do. Now going back to the PCB in
 Kicad, I can track down where to test for VBUS and VCC:
 
-[[./_20220923_221503screenshot.png]]
+[[./img/_20220923_221503screenshot.png]]
 
 
-[[./_20220923_221553screenshot.png]]
+[[./img/_20220923_221553screenshot.png]]
 
 So I grab my multimeter and find one of the chip terminals that connect to
 VBUS, and confirm that VBUS is 5.2V (with no current being drawn it's gonna be
 that much higher than 5.0V). Next up in the schematic is where U16 converts VBUS
 to VCC:
 
-[[./_20220923_221758screenshot.png]]
+[[./img/_20220923_221758screenshot.png]]
 
 Again, in the PCB mode in kicad I can highlight where VCC is (from the back of
 the PCB, so I don't need to pull all the switches to check out the traces from
 the other side):
 
 
-[[./_20220923_221925screenshot.png]]
+[[./img/_20220923_221925screenshot.png]]
 
 Again, thankfully these are easy points to get my multimeter to measure, and it
 measured 0.0V, which suggests that U16 is the culprit here (or at least one of
@@ -80,7 +80,7 @@ the culprits).
 So I then took apart all the keyswitches (U16 is on the other side, so that
 couldn't be avoided), and revealed the chip (it's not labelled):
 
-[[./_20220923_222201screenshot.png]]
+[[./img/_20220923_222201screenshot.png]]
 
 
 I used a piece of wire (and a steady hand) to bridge VBUS and VCC, and boom! the
