@@ -1,0 +1,125 @@
+#+title: 2022 09 18 Launch Repair
+
+* Debugging log
+** Downloading the schematics :ATTACH:
+:PROPERTIES:
+:ID:       00b9244c-5cf3-4d22-9192-112736942bff
+:END:
+
+It turns out there are available on github:
+
+https://github.com/system76/launch/tree/master/pcb
+
+A quick look at my board shows that it's nicely labelled as Launch 1.3 (nice!)
+and that the github repo is tagged with the versions (double nice!)
+
+With a simple:
+
+#+begin_src sh
+git checkout -B 1.3 1.3
+#+end_src
+
+I then opened up the schematics in kicad:
+
+
+[[./_20220923_221101screenshot.png]]
+
+** Symptoms :ATTACH:
+:PROPERTIES:
+:ID:       2adffc06-3906-4dc5-a124-6d3c74083368
+:END:
+
+The USB module wasn't enumerating at all on any of my hosts, but I can see see
+that there is power going into the keyboard when I'm plugging it in. This
+suggests that the USB controller chip isn't responding.
+
+The fact that it draws so little energy (20mW) from my ammeter also suggests
+that the power path is broken
+
+Looking now at the schematic again, the power path is in a subsheet:
+
+[[./_20220923_223307screenshot.png]]
+
+
+So entering that, I see the power path, neatly laid out:
+
+[[./_20220923_221348screenshot.png]]
+
+There even comments explaining what things do. Now going back to the PCB in
+Kicad, I can track down where to test for VBUS and VCC:
+
+[[./_20220923_221503screenshot.png]]
+
+
+[[./_20220923_221553screenshot.png]]
+
+So I grab my multimeter and find one of the chip terminals that connect to
+VBUS, and confirm that VBUS is 5.2V (with no current being drawn it's gonna be
+that much higher than 5.0V). Next up in the schematic is where U16 converts VBUS
+to VCC:
+
+[[./_20220923_221758screenshot.png]]
+
+Again, in the PCB mode in kicad I can highlight where VCC is (from the back of
+the PCB, so I don't need to pull all the switches to check out the traces from
+the other side):
+
+
+[[./_20220923_221925screenshot.png]]
+
+Again, thankfully these are easy points to get my multimeter to measure, and it
+measured 0.0V, which suggests that U16 is the culprit here (or at least one of
+the culprits).
+
+
+** Testing the theory :ATTACH:
+:PROPERTIES:
+:ID:       e24bf2ac-fa23-4465-8557-679adee3a9e7
+:END:
+
+So I then took apart all the keyswitches (U16 is on the other side, so that
+couldn't be avoided), and revealed the chip (it's not labelled):
+
+[[./_20220923_222201screenshot.png]]
+
+
+I used a piece of wire (and a steady hand) to bridge VBUS and VCC, and boom! the
+keyboard enumerated. Sure, it no longer has the protection of the load switch
+(the chip is an AP22811, high-side load switch), but everything is powered.
+
+** Actual replacement
+
+It was a simple swap, as it is a SOT-23-5. I'd never done SMD soldering before,
+but a friend told me it's a simple thing to do with a heat gun, so I ordered the
+part (and the heat gun) from digikey, and it arrived the next day.
+
+After practicing on a few old PCBs I had laying around, it was a fairly simple
+replacement, and I have my favourite keyboard back again.
+
+** Conclusion
+
+The schematics *and* kicad made this a whole lot easier than it could have been,
+and prevented a bunch of stuff from ending up in the landfill. I wouldn't have
+known what chip U16 was even if I traced the 5V power all the way down to this
+chip, nor known what to replace it with. Having the actual PCB files available
+made finding test points to debug this *way* easier.
+
+Even if I couldn't have done this myself, I could have probably taken the
+schematics to a local electronics repair shop (or an EE friend) to get this
+$0.80 part replaced and keep my $300 keyboard.
+
+* Design Notes
+- Main controller chip is AT90USB646
+- It runs the QMK firmware
+- There is an SPI interface in the AT90USB646
+- datasheet: http://ww1.microchip.com/downloads/en/devicedoc/7593s.pdf
+- I have a launch 1.3 board
+- datasheet for power load switch:
+  https://www.mouser.ca/datasheet/2/115/AP22811-2997717.pdf
+
+* Debugging notes
+- Board version 1.3 is what I have, should look at that
+- VBUS is 5V
+- VCC is 0V
+- Looks like U16 is broke, it is a AP22811AW5-7‎, power load switch
+- This converts VBUS to VCC,
