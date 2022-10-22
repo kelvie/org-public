@@ -30,7 +30,7 @@ that pin 12 is connected.
 |-------+-------------------+-----------------------------------------------------------------------------|
 |     5 | GND/Common        | Common for both AC and DC                                                   |
 |     6 | 24 volts AC (in)  | Power source for thermostat                                                 |
-|    11 | 0-10 volts DC out | Fan control (~0V~ fan off, ~10V~ fan on, current program typically uses 8V) |
+|    11 | 0-10 volts DC out | Fan control (~0V~ fan off, ~10V~ fan on, current program typically uses ~8V~) |
 |    12 | 0-10 volts DC out | Hot/cold water pump (~0V~ cold water, ~5V~ is off, ~10V~ is hot water)      |
 |    24 | 0-10 volts DC in  | Temperature of the water at the Jaga unit                                   |
 
