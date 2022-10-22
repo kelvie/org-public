@@ -1,0 +1,63 @@
+#+title: Thermostats at TGR
+
+* Principle of operation
+
+The model is SEL8300 or something, from Schneider. They control a Clima Canal
+from Jaga, as well as a pump system that controls water pumping into the Jaga
+units throughout the home.
+
+The pump can be set to pump cold or hot water through the pipes, and each room
+has a thermometer (probably a thermistor) that detects what temperature the
+water is going through a particular Jaga unit.
+
+Fresh hot or cold water (a.k.a. the coolant) flows into each Jaga unit, which
+gets dispersed by a heat sink and a fan, which blows hot or cold air out of it.
+
+One thermostat in a home controls the pump, and all of them control their
+individual room's jaga fan speed, based on the temperature of the water.
+
+* Pin diagram
+
+[[./img/20221022-thermopins.jpg]]
+
+Only one of the thermostats (at least in our 2 bedroom apartment with 3
+thermostats total) is wired up to pin 12, but all the thermostats work assuming
+that pin 12 is connected.
+
+* Thermostat pins
+
+| Pin # | Voltage           | Description                                                                 |
+|-------+-------------------+-----------------------------------------------------------------------------|
+|     5 | GND/Common        | Common for both AC and DC                                                   |
+|     6 | 24 volts AC (in)  | Power source for thermostat                                                 |
+|    11 | 0-10 volts DC out | Fan control (~0V~ fan off, ~10V~ fan on, current program typically uses 8V) |
+|    12 | 0-10 volts DC out | Hot/cold water pump (~0V~ cold water, ~5V~ is off, ~10V~ is hot water)      |
+|    24 | 0-10 volts DC in  | Temperature of the water at the Jaga unit                                   |
+
+* Thermostat operation
+
+Each thermostat (per room) operates independently, although they are bound by
+the water pumping through the pipes (hot or cold).
+
+There is a custom lua script (that you can see the first few lines of in the
+thermostat if you go to the service menu, but no more) that is uploaded onto the
+thermostat. From what I gather, it does this:
+
+1. When the thermostat wants to cool, it will pull pin 12 to ~0V~, to get cold
+   water pumping through the pipes on the entire home.
+  - It will then wait for pin 24 to go to a low voltage (didn’t measure how low,
+    I’d imagine it’d be < ~3V~), indicating that there is cold water through the
+    pipes before turning on the fan by putting a voltage on Pin 11.
+2. If the thermostat wants to heat, it will pull pin 12 to ~10V~, to get hot water
+   pumping through the pipes
+  - It will then wait for pin 24 to go to a high voltage (probably > ~7V~, but
+    that’s speculation) to indicate hot water is flowing through the pipes
+3. If the thermostat wants to turn off, it will pull pin 12 to ~5.0V~, which
+   actually turns off the water pumps, so the jaga units will eventually just
+   become room temperature without fresh water.
+   - The fans will also turn off (~0V~ to pin 11)
+4. The thermostat determines what fan speed (pin 11) based on the temperature
+   difference between the set point and the current temperature (measured by the
+   thermostat itself).
+   - It's seemingly possible for the fan to go to ~10V~, but it rarely does (and
+     is quite loud).
