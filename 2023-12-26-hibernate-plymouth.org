@@ -1,0 +1,106 @@
+#+TITLE: hibernate-plymouth
+#+DATE: 2023-12-26
+
+* Introduction
+
+I currently use:
+- systemd-boot
+- dm-crypt to encrypt my swap and root partitions
+- plymouth to show a splash screen, and a nice password prompt
+- (not relevant, but a TPM to unlock the swap partition)
+- hibernation (suspend-to-disk), that uses the swap partition
+
+Right now, due to the way initrds are set up, it asks for my root parititon
+password when I resume from hibernation -- not only that, because the system
+is actually resuming, it has the really awkward situation where the password
+prompt is up (which tells me, the user, that I need to enter the password to
+boot), but the system is 100% focussed on resuming from hibernation, so even
+typing, it won't do anything.
+
+In an ideal world, it'll show a "resuming from hibernation" message, but for
+now, I'd be happy with it just not showing the password prompt.
+
+* How hibernation works
+
+So how hibernation works (in Arch, using mkinitcpio), is that there is a
+~resume~ module that is installed, which really just copies a bunch of systemd
+services into the initrd.
+
+There is a ~systemd-hibernate-resume.service~ service, which I believe is
+auto-generated based off of the kernel ~resume=~/~resume_offset=~ parameters,
+but on a regular, non-resume boot, this just returns successful.
+
+On an actual resume, it's as if this never happened -- the system being resumed
+to has no recollection of this initrd even being run (I wonder if it works like
+~kexec~).
+
+* How plymouth works
+
+Plymouth is also a systemd service, and like ~resume~, there is a ~mkinitcpio~
+hook that copies some systemd services into the initrd to start it up, and have
+it take over the vconsole, and there are a few systemd hooks to let it ask for
+things like the disk encryption passwords.
+
+The unit that starts this is ~plymouth-start.service~.
+
+* My workaround
+
+Simply, I just made ~plymouth-start.service~ run after
+~systemd-hibernate-resume.service~:
+
+In ~/lib/systemd/system/plymouth-start.service~:
+#+BEGIN_SRC systemd
+[Unit]
+After=systemd-hibernate-resume.service
+#+END_SRC
+
+Then run ~mkinitcpio~ (and for me, ~sbupdate~ as I use secure boot with my own
+keys). The net result of this on my system is I get a blank screen while it
+resumes.
+
+* Future work
+
+I'd like to have a "resuming from hibernation" message, clearly this is possible
+to some degree (because ask-password does something similar), but it'd involve
+adding a hook into ~systemd-hibernate-resume.service~ or the binary it runs,
+~/usr/lib/systemd/systemd-hibernate-resume~, that communicates with the plymouth
+process.
+
+I'll have to look into how ~/usr/bin/systemd-tty-ask-password-agent~ works.
+
+* Other useful tools
+
+script to explore the initrd:
+#+BEGIN_SRC bash
+#!/bin/bash
+
+# script to extract the current initramfs to a directory, then delete it after
+
+set -euo pipefail
+
+# use fzf to choose an initramfs
+initramfs=$(find /boot -type f -name 'initramfs*.img' | fzf --height 40% --reverse --prompt 'initramfs: ')
+
+# make a temp directory, and a cleanup function
+tmpdir=$(mktemp -d)
+
+cleanup() {
+    echo -n "cleaning up... "
+    rm -rf "$tmpdir"
+    echo "done!"
+
+}
+
+trap cleanup EXIT
+
+# extract the initramfs
+cd "$tmpdir"
+echo -n "Extracting $initramfs to $tmpdir... "
+zstdcat "$initramfs" | cpio -idm
+echo "done!"
+cd -
+
+# start a shell in the temp directory
+echo "Entering $tmpdir with a new shell (exit to delete the temp directory))"
+(cd "$tmpdir" && exec $SHELL)
+#+END_SRC
